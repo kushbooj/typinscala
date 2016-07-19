@@ -4,15 +4,41 @@ package fpinscala.errorhandling
 import scala.{Option => _, Some => _, Either => _, _} // hide std library `Option`, `Some` and `Either`, since we are writing our own in this chapter
 
 sealed trait Option[+A] {
-  def map[B](f: A => B): Option[B] = sys.error("todo")
+  def map[C](f: A => C): Option[C] = this match {
+    case None => None
+    case Some(x) => Some(f(x))
+  }
 
-  def getOrElse[B>:A](default: => B): B = sys.error("todo")
+  def getOrElse[D>:A](default: => D): D = this match {
+    case None => default
+    case Some(x) => x
+  }
 
-  def flatMap[B](f: A => Option[B]): Option[B] = sys.error("todo")
+  def flatMapPM[B](f: A => Option[B]): Option[B] = this match {
+    case None => None
+    case Some(x) => f(x)
+  }
 
-  def orElse[B>:A](ob: => Option[B]): Option[B] = sys.error("todo")
+  // Flatten the structure....map returns a nested structure Eg: Option(Option of) but we need to flatten it out to get just of type Option
 
-  def filter(f: A => Boolean): Option[A] = sys.error("todo")
+  def flatMap[B](f: A => Option[B]): Option[B] = map(f).getOrElse(None) // map(f) Option(Option(B))
+
+  def orElse1[B>:A](ob: => Option[B]): Option[B] = this match {
+    case None => ob
+    case Some(x) => this
+  }
+
+  def orElse[B>:A](ob: => Option[B]): Option[B] = map(x => Some(x)).getOrElse(ob)
+
+
+  def filter1(f: A => Boolean): Option[A] = this match {
+    case Some(x) if f(x) => this
+    case _ => None
+  }
+
+  def filter(f: A => Boolean): Option[A] = flatMap(x => {
+    if(f(x)) Some(x) else None
+  })
 }
 case class Some[+A](get: A) extends Option[A]
 case object None extends Option[Nothing]
@@ -38,11 +64,30 @@ object Option {
   def mean(xs: Seq[Double]): Option[Double] =
     if (xs.isEmpty) None
     else Some(xs.sum / xs.length)
-  def variance(xs: Seq[Double]): Option[Double] = sys.error("todo")
 
-  def map2[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = sys.error("todo")
+  def variance(xs: Seq[Double]): Option[Double] =  {
+    val mn: Option[Double] = mean(xs)
+    mn.flatMap(m => mean(xs.map(x => math.pow(x - m, 2))))
+  }
+
+  def map2[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = a.flatMap(x => b.map(y => f(x, y)))
+  def map2Map[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = for {
+    x <- a
+    y <- b
+  } yield f(x,y)
 
   def sequence[A](a: List[Option[A]]): Option[List[A]] = sys.error("todo")
 
   def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] = sys.error("todo")
+
+  object Main extends App {
+    println (Some(1).map(_ => 2))
+    println (None.map(_ => 2))
+    println (None.getOrElse(2))
+    println(Some(2).flatMap(x => Some(x*x)))
+    println(Some(2).orElse(Some(3)))
+    println(None.orElse(Some(3)))
+    println(Some(4).filter(x => x > 3))
+    println(mean(Seq(1.9,2.9,3.9)))
+  }
 }
