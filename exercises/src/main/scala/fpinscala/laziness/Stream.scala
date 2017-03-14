@@ -17,20 +17,66 @@ trait Stream[+A] {
     case Empty => None
     case Cons(h, t) => if (f(h())) Some(h()) else t().find(f)
   }
-  def take(n: Int): Stream[A] = sys.error("todo")
 
-  def drop(n: Int): Stream[A] = sys.error("todo")
+  def toList: List[A] = this match {
+    case Empty => Nil
+    case Cons(h, t) => h() :: t().toList
+  }
 
-  def takeWhile(p: A => Boolean): Stream[A] = sys.error("todo")
+  def take(n: Int): Stream[A] = this match {
+    case Cons(h, t) if (n > 0) => Cons(h, () => t().take(n-1))
+    case _ => Empty
+  }
 
-  def forAll(p: A => Boolean): Boolean = sys.error("todo")
+  def drop(n: Int): Stream[A] = this match {
+    case Empty => Empty
+    case Cons(_, _) if (n == 0) => this
+    case Cons(_, t) if(n > 0) => t().drop(n-1)
+  }
 
-  def headOption: Option[A] = sys.error("todo")
+  def takeWhile(p: A => Boolean): Stream[A] = this match {
+    case Cons(h, t) if p(h()) => Cons(h, () => t().takeWhile(p))
+    case _ => Empty
+  }
 
+  def takeWhile2(p: A => Boolean): Stream[A] = {
+    foldRight(empty[A])((a,b) => if(p(a)) Cons(() => a, () => b) else Empty )
+  }
+
+  def forAll(p: A => Boolean): Boolean = this match {
+    case Cons(h, t) if(p(h())) => t().forAll(p)
+    case _ => false
+  }
+
+  def forAll2(p: A => Boolean): Boolean =  {
+    foldRight(true)((a, b) => p(a) && b)
+  }
+
+  def headOption2: Option[A] = this match {
+    case Empty => None
+    case Cons(h, _) => Option(h())
+  }
+
+//  def headOption: Option[A] = {
+//    foldRight(None)((a,b) => Some(a))
+//  }
   // 5.7 map, filter, append, flatmap using foldRight. Part of the exercise is
   // writing your own function signatures.
 
-  def startsWith[B](s: Stream[B]): Boolean = sys.error("todo")
+  def map[B](f: A => B): Stream[B] = foldRight(empty[B])((a,b) => cons(f(a), b))
+
+  def filter(f: A => Boolean): Stream[A] = this match {
+    case Cons(h, t) if f(h()) =>  this
+    case _ => Empty
+  }
+
+  def filterFR(f: A => Boolean): Stream[A] = foldRight(empty[A])((a, b) => if (f(a)) cons(a, b) else b)
+
+  def append[B>:A](s: => Stream[B]): Stream[B] = foldRight(s)((h,t) => cons(h, t))
+
+  def flatMap[B](f: A => Stream[B]): Stream[B] = foldRight(empty[B])((h,t) => f(h).append(t)) // ????
+
+  def startsWith[B](s: Stream[B]): Boolean = ???
 }
 case object Empty extends Stream[Nothing]
 case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A]
@@ -49,7 +95,41 @@ object Stream {
     else cons(as.head, apply(as.tail: _*))
 
   val ones: Stream[Int] = Stream.cons(1, ones)
-  def from(n: Int): Stream[Int] = sys.error("todo")
+  def constant[A] (a: A) : Stream[A] = ???
+  def from(n: Int): Stream[Int] =  cons(n, from(n+1))
+  def fibs(): Stream[Int] =  {
+    def fib(f0: Int, f1: Int): Stream[Int] = {
+      cons(f0+f1, fib(f1, f1+f0))
+    }
+    cons(0, cons(1, fib(0,1)))
+  }
 
-  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = sys.error("todo")
+  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = {
+    def produce(s: S) : Stream[A] = {
+      val state: Option[(A, S)] = f(s)
+      state match {
+        case None => empty[A]
+        case Some((a, t)) => cons(a, produce(t))
+      }
+    }
+    produce(z)
+  }
+
+  def unfoldR[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = f(z) match {
+    case None => empty[A]
+    case Some((h,t)) => cons(h, unfoldR(t)(f))
+  }
+
+  def fibsUF(): Stream[Int] = unfoldR((0,1))(s => Some((s._1,(s._2, s._1+s._2))))
+}
+
+object Main extends App {
+  def f(x: => Int): Int = x
+  var stream = Stream(1,2,3)
+  val str = Stream(f(1), f(2), f(3))
+  stream.takeWhile(x => x > 2)
+  println(str.takeWhile(x => x > 2))
+  println(stream.take(2).toList)
+  println(fibsUF().take(5).toList)
+  println(fibs().take(15).toList)
 }

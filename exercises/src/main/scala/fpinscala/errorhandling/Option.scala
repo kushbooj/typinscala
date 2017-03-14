@@ -1,7 +1,8 @@
 package fpinscala.errorhandling
 
 
-import scala.{Option => _, Some => _, Either => _, _} // hide std library `Option`, `Some` and `Either`, since we are writing our own in this chapter
+import scala.collection.mutable.ListBuffer
+import scala.{Either => _, Option => _, Some => _} // hide std library `Option`, `Some` and `Either`, since we are writing our own in this chapter
 
 sealed trait Option[+A] {
   def map[C](f: A => C): Option[C] = this match {
@@ -71,16 +72,25 @@ object Option {
   }
 
   def map2[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = a.flatMap(x => b.map(y => f(x, y)))
-  def map2Map[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = for {
+  def map2ForComprehensions[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = for {
     x <- a
     y <- b
   } yield f(x,y)
 
-  def sequence[A](a: List[Option[A]]): Option[List[A]] = sys.error("todo")
+//  def sequence[A](list: List[Option[A]]): Option[List[A]] = {
+//    var result: ListBuffer[A] = new ListBuffer[A]()
+//    list.foreach(x => this match {
+//      case Some(x) =>  result.:+(x)
+//      case _ => return None
+//    })
+//    Some(result.toList)
+//  }
 
-  def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] = sys.error("todo")
+//  def traverse[A, B](a: List[A])(f: A => Option[B]): Option[List[B]] = sequence(a.map(f))
 
-  object Main extends App {
+  def sequenceViaTraverse[A](list: List[Option[A]]): Option[List[A]] = ???
+
+    object Main extends App {
     println (Some(1).map(_ => 2))
     println (None.map(_ => 2))
     println (None.getOrElse(2))
